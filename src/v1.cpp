@@ -10,7 +10,7 @@
 
 
 const size_t max_empty = 10;
-std::counting_semaphore full{0}, empty{max_empty};
+std::counting_semaphore<max_empty> full{0}, empty{max_empty};
 std::queue<void *> ready;
 std::mutex ready_guard;
 
@@ -37,6 +37,14 @@ void *producer_thread(void *arg)
 
 }
 
+void *produce(void *arg)
+{
+    static uint32_t i = 0;
+    uint32_t *new_val = (uint32_t *)malloc(sizeof(uint32_t));
+    *new_val = i++;
+    return (void *) new_val;
+}
+
 void *consumer_thread(void *arg)
 {
     while (true) {
@@ -56,13 +64,69 @@ void *consumer_thread(void *arg)
 
 }
 
+class Producer {
+    std::queue<void *> *data;
+    std::counting_semaphore<max_empty> *full, *empty;
+    std::mutex *data_guard;
+    void * (*produce)(void *arg);
+
+    void *producer_main(void *arg)
+    {
+        while (true) {
+
+            empty->acquire();
+            void *new_val = produce(nullptr);
+            data_guard->lock();
+            data->push(new_val);
+            data_guard->unlock();
+
+            printf("PROD %u\n", *((uint32_t *)new_val));
+
+            full->release();
+        }
+
+    }
+    
+    public:
+        std::thread thread;
+
+        Producer(std::queue<void *> *datar, 
+                 std::counting_semaphore<max_empty> *fullr, 
+                 std::counting_semaphore<max_empty> *emptyr,
+                 std::mutex *data_guardr,
+                 void *(*callback_function)(void *)) 
+        {
+            data = datar;
+            full = fullr;
+            empty = emptyr;
+            data_guard = data_guardr;
+            produce = callback_function;
+
+        }
+
+        void run()
+        {
+            thread = std::thread(&Producer::producer_main, this, nullptr);
+        }
+
+};
+
+
+
+
 int main(int argc, char *argv[]) 
 {
-    std::thread p1(producer_thread, nullptr);
+    // std::thread p1(producer_thread, nullptr);
+
+
+    Producer p1(&ready, &full, &empty, &ready_guard, produce);
+    p1.run();
+
     std::thread c1(consumer_thread, nullptr);
     std::thread c2(consumer_thread, nullptr);
 
-    p1.join();
+    p1.thread.join();
+    printf("I have contracted stupidity\n");
     c1.join();
     c2.join();
 }
