@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <stdint.h>
+#include "unistd.h"
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -47,18 +48,6 @@ inline void free_node(node_t *node)
     free(node);
 }
 
-// void print_queue(queue_t *queue)
-// {
-//     assert(queue);
-
-//     printf("(");
-//     for (node_t *curr = queue->list; curr; curr = curr->next) {
-//         assert(curr->bytes == sizeof(uint32_t));
-//         printf("%u ", *((uint32_t *) curr->data));
-//     }
-//     printf(")\n");
-// }
-
 
 node_t *list = NULL;
 sem_t full;
@@ -88,7 +77,7 @@ void *producer_thread(void *arg)
         size_t bytes;
         void *datum = produce(arg, &bytes);
         node_t *node = create_node(datum, bytes);
-        // printf("A\n");
+
         sem_wait(&empty);
         sem_wait(&list_guard);
         DL_APPEND(list, node);
@@ -99,7 +88,6 @@ void *producer_thread(void *arg)
     }
 
 }
-#include "unistd.h"
 
 void *consumer_thread(void *arg)
 {
@@ -111,7 +99,6 @@ void *consumer_thread(void *arg)
 
 
     for (;;) {
-        // printf("B\n");
         sem_wait(&full);
         sem_wait(&list_guard);
         node_t *head = list;
@@ -119,11 +106,13 @@ void *consumer_thread(void *arg)
         if (ENABLE_DEBUG)
             printf("CONS %u\n", *((uint32_t *)head->data));
         sem_post(&list_guard);
+        /* we can mark as available (i.e. increment empty) because the node 
+        is taken from the list anyways */
+        sem_post(&empty);
         
         usleep(rand_r(&rand_state) % 1000000);
         consume(head->data);
         free_node(head);
-        sem_post(&empty);
     }
 }
 
@@ -167,7 +156,6 @@ int main(int argc, char *argv[])
     pthread_t consumers[num_consumers];
     for (size_t i = 0; i < num_producers; ++i)
         pthread_create(&producers[i], NULL, producer_thread, NULL);
-    
     for (size_t i = 0; i < num_consumers; ++i)
         pthread_create(&consumers[i], NULL, consumer_thread, NULL);
     
@@ -175,41 +163,6 @@ int main(int argc, char *argv[])
         pthread_join(producers[i], NULL);
     for (size_t i = 0; i < num_consumers; ++i)
         pthread_join(consumers[i], NULL);
-
-    
-
-
-    // pthread_t producer_id, consumer_id, cc;
-    // pthread_create(&producer_id, NULL, producer_thread, NULL);
-    // pthread_create(&consumer_id, NULL, consumer_thread, NULL);
-    // pthread_create(&cc, NULL, consumer_thread, NULL);
-
-    // pthread_join(producer_id, NULL);
-    // pthread_join(consumer_id, NULL);
-    // pthread_join(cc, NULL);
-
-
-
-
-
-    // node_t *curr;
-    // int count;
-    // for (size_t i = 0; i < 10; ++i) {
-    //         arr[i] = i;
-    //         curr = create_node(&arr[i], sizeof(uint32_t));
-    //         DL_APPEND(list, curr);
-    // }
-    // DL_COUNT(list, curr, count);
-    // printf("count    %u\n", count);
-    // DL_FOREACH(list, curr) printf("%u ", *((uint32_t *) curr->data));
-
-
-    
-
-    
-    
-
-    
 
     return 0;
 }
