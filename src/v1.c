@@ -12,7 +12,8 @@
 #include <utlist.h>
 #include <utarray.h>
 
-
+#define BUFFER_SIZE 32
+#define ENABLE_DEBUG true
 
 
 typedef struct node {
@@ -66,7 +67,7 @@ sem_t list_guard;
 
 
 
-void *consume(void *data)
+void consume(void *data)
 {
     free(data);
 }
@@ -82,9 +83,7 @@ void *produce(void *arg, size_t *out_bytes)
 
 void *producer_thread(void *arg)
 {
-    size_t i = 0;
-    while (true) {
-        i = (i + 1) % 10;
+    for (;;) {
         
         size_t bytes;
         void *datum = produce(arg, &bytes);
@@ -93,7 +92,8 @@ void *producer_thread(void *arg)
         sem_wait(&empty);
         sem_wait(&list_guard);
         DL_APPEND(list, node);
-        printf("PROD %u\n", *((uint32_t *)node->data));
+        if (ENABLE_DEBUG)
+            printf("PROD %u\n", *((uint32_t *)node->data));
         sem_post(&list_guard);
         sem_post(&full);
     }
@@ -110,13 +110,14 @@ void *consumer_thread(void *arg)
     rand_state = time(NULL) ^ getpid() ^ (uint) pthread_self();
 
 
-    while (true) {
+    for (;;) {
         // printf("B\n");
         sem_wait(&full);
         sem_wait(&list_guard);
         node_t *head = list;
         DL_DELETE(list, head);
-        printf("CONS %u\n", *((uint32_t *)head->data));
+        if (ENABLE_DEBUG)
+            printf("CONS %u\n", *((uint32_t *)head->data));
         sem_post(&list_guard);
         
         usleep(rand_r(&rand_state) % 1000000);
@@ -151,19 +152,12 @@ int main(int argc, char *argv[])
 
 
     sem_init(&full, 0, 0);
-    sem_init(&empty, 0, 10);
+    sem_init(&empty, 0, BUFFER_SIZE);
     sem_init(&list_guard, 0, 1);
 
 
 
 
-    node_t *curr;
-    int count;
-    // for (size_t i = 0; i < 10; ++i)
-    //     arr[i] = i;
-    DL_COUNT(list, curr, count);
-    printf("count    %u\n", count);
-    DL_FOREACH(list, curr) printf("%u ", *((uint32_t *) curr->data));
 
 
     size_t num_producers = 10;
