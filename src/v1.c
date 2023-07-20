@@ -23,24 +23,27 @@ typedef struct node {
 } node_t;
 
 
-void *ck_malloc(size_t size, char *info_str)
+inline void *ck_malloc(size_t size)
 {
-    void *rv = (void *)malloc(size);
-    if (!rv) {
-        printf("Failed to realloc in %s.\n", info_str);
-        exit(1);
-    }
+    void *rv = malloc(size);
+    if (!rv)
+        exit(-1);
     return rv;
 }
 
-node_t *create_node(void *data, size_t bytes)
+inline node_t *create_node(void *data, size_t bytes)
 {
-    node_t *rv = ck_malloc(sizeof(node_t), "create_node()");
+    node_t *rv = ck_malloc(sizeof(node_t));
     rv->data = data;
     rv->bytes = bytes;
     rv->prev = NULL;
     rv->next = NULL;
     return rv;
+}
+
+inline void free_node(node_t *node)
+{
+    free(node);
 }
 
 // void print_queue(queue_t *queue)
@@ -62,17 +65,30 @@ sem_t empty;
 sem_t list_guard;
 
 
-pthread_mutex_t *guard;
 
-uint32_t arr[10];
+void *consume(void *data)
+{
+    free(data);
+}
+
+void *produce(void *arg, size_t *out_bytes)
+{
+    static uint32_t i = 0;
+    uint32_t *new_val = (uint32_t *)ck_malloc(sizeof(uint32_t));
+    *new_val = i++;
+    *out_bytes = sizeof(uint32_t);
+    return (void *) new_val;
+}
 
 void *producer_thread(void *arg)
 {
     size_t i = 0;
     while (true) {
         i = (i + 1) % 10;
-
-        node_t *node = create_node(&arr[i], sizeof(uint32_t));
+        
+        size_t bytes;
+        void *datum = produce(arg, &bytes);
+        node_t *node = create_node(datum, bytes);
         // printf("A\n");
         sem_wait(&empty);
         sem_wait(&list_guard);
@@ -96,14 +112,16 @@ void *consumer_thread(void *arg)
 
     while (true) {
         // printf("B\n");
-        usleep(rand_r(&rand_state) % 1000000);
         sem_wait(&full);
         sem_wait(&list_guard);
         node_t *head = list;
         DL_DELETE(list, head);
         printf("CONS %u\n", *((uint32_t *)head->data));
-        free(head);
         sem_post(&list_guard);
+        
+        usleep(rand_r(&rand_state) % 1000000);
+        consume(head->data);
+        free_node(head);
         sem_post(&empty);
     }
 }
@@ -141,8 +159,8 @@ int main(int argc, char *argv[])
 
     node_t *curr;
     int count;
-    for (size_t i = 0; i < 10; ++i)
-        arr[i] = i;
+    // for (size_t i = 0; i < 10; ++i)
+    //     arr[i] = i;
     DL_COUNT(list, curr, count);
     printf("count    %u\n", count);
     DL_FOREACH(list, curr) printf("%u ", *((uint32_t *) curr->data));
