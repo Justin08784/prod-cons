@@ -67,9 +67,6 @@ uint32_t arr[10];
 void *producer_thread(void *arg)
 {
     size_t i = 0;
-    int out;
-    sem_getvalue(empty, &out);
-    printf("out: %d\n", out);
     while (true) {
         i = (i + 1) % 10;
 
