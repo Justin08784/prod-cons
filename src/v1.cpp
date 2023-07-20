@@ -9,34 +9,11 @@
 
 
 
-#define MAX_EMPTY 10
+#define MAX_EMPTY 1024
 
 std::counting_semaphore<MAX_EMPTY> full{0}, empty{MAX_EMPTY};
 std::queue<void *> ready;
 std::mutex ready_guard;
-
-
-void *producer_thread(void *arg)
-{
-    uint32_t i = 0;
-    while (true) {
-
-        // printf("A\n");
-        empty.acquire();
-        uint32_t *new_val = (uint32_t *)malloc(sizeof(int));
-        assert(new_val);
-        *new_val = i++;
-
-        ready_guard.lock();
-        ready.push(new_val);
-        assert(*((uint32_t *) ready.back()) == *new_val);
-        ready_guard.unlock();
-        printf("PROD %u\n", *new_val);
-
-        full.release();
-    }
-
-}
 
 void *produce(void *arg)
 {
@@ -97,6 +74,8 @@ class Producer {
     public:
         std::thread thread;
 
+        Producer() {}
+
         Producer(std::queue<void *> *datar, 
                  std::counting_semaphore<MAX_EMPTY> *fullr, 
                  std::counting_semaphore<MAX_EMPTY> *emptyr,
@@ -145,6 +124,8 @@ class Consumer {
     public:
         std::thread thread;
 
+        Consumer() {}
+
         Consumer(std::queue<void *> *datar, 
                  std::counting_semaphore<MAX_EMPTY> *fullr, 
                  std::counting_semaphore<MAX_EMPTY> *emptyr,
@@ -173,27 +154,26 @@ int main(int argc, char *argv[])
 {
     // std::thread p1(producer_thread, nullptr);
     size_t num_producers = 1;
-    size_t num_consumers = 10;
+    size_t num_consumers = 4;
 
-    std::queue<Producer> producers;
+    Producer producers[num_producers];
+    Consumer consumers[num_consumers];
 
+    for (size_t i = 0; i < num_producers; ++i) {
+        producers[i] = Producer(&ready, &full, &empty, &ready_guard, produce);
+        producers[i].run();
+    }
 
-    Producer p1(&ready, &full, &empty, &ready_guard, produce);
-    p1.run();
+    for (size_t i = 0; i < num_consumers; ++i) {
+        consumers[i] = Consumer(&ready, &full, &empty, &ready_guard, consume);
+        consumers[i].run();
+    }
 
-    // std::thread c1(consumer_thread, nullptr);
-    // std::thread c2(consumer_thread, nullptr);
+    for (size_t i = 0; i < num_producers; ++i)
+        producers[i].thread.join();
 
-    Consumer c1(&ready, &full, &empty, &ready_guard, consume);    
-    Consumer c2(&ready, &full, &empty, &ready_guard, consume);    
-    c1.run();
-    c2.run();    
-
-
-    p1.thread.join();
-    printf("I have contracted stupidity\n");
-    c1.thread.join();
-    c2.thread.join();
+    for (size_t i = 0; i < num_consumers; ++i)
+        consumers[i].thread.join();
 }
 
 
