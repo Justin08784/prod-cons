@@ -1,4 +1,4 @@
-BIN = v1
+BIN = v2
 CC = gcc
 CXX = g++
 # CFLAGS = -O2 -Wall -Wextra -g -fPIC -I $(INCLUDE)
@@ -19,6 +19,9 @@ ppv1: ./src/v1.cpp
 	$(CXX) -o $@ $^ $(CXXFLAGS) 
 
 v1: ./src/v1.c
+	$(CC) -o $@ $^ $(CFLAGS) 
+
+v2: ./src/v2.c
 	$(CC) -o $@ $^ $(CFLAGS) 
 
 
