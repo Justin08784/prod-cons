@@ -1,9 +1,9 @@
-BIN = v1
+BIN = v1 ppv1
 CC = gcc
 CXX = g++
 # CFLAGS = -O2 -Wall -Wextra -g -fPIC -I $(INCLUDE)
 CFLAGS = -O2 -Wall -Wextra -fPIC -I $(INCLUDE)
-CXXFLAGS = 
+CXXFLAGS = -std=c++20
 CPPFLAGS = 
 LDFLAGS = 
 INCLUDE = ./uthash-src
@@ -15,8 +15,8 @@ RM = rm -f
 all: $(BIN)
 .PHONY: all
 
-# v1: ./v1.c
-# 	$(CC) -o $@ $^ $(CFLAGS) 
+ppv1: ./src/v1.cpp
+	$(CXX) -o $@ $^ $(CXXFLAGS) 
 
 v1: ./src/v1.c
 	$(CC) -o $@ $^ $(CFLAGS) 
