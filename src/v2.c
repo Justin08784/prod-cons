@@ -15,8 +15,8 @@
 
 #define BUFFER_SIZE 16
 #define ENABLE_DEBUG true
-#define BLOCKS_PER_WORD 32 / 2
-#define FREE_MAP_SIZE BUFFER_SIZE / BLOCKS_PER_WORD
+#define BLOCKS_PER_WORD 16
+#define FREE_MAP_SIZE 1
 
 
 typedef enum status {
@@ -61,31 +61,37 @@ sem_t full;
 sem_t empty;
 sem_t buff_guard;
 
-inline size_t bindex(size_t b) { return b / BLOCKS_PER_WORD; }
-inline size_t boffset(size_t b) { return 2 * (b % BLOCKS_PER_WORD); }
+inline int bindex(int b) { return b / BLOCKS_PER_WORD; }
+inline int boffset(int b) { return 2 * (b % BLOCKS_PER_WORD); }
 
-inline void set_bit(int b) 
+
+inline void clear_bit(int index) 
 { 
-    free_map[bindex(b)] |= (0b11 << boffset(b)); 
-}
-inline void clear_bit(int b) 
-{ 
-    free_map[bindex(b)] &= ~(0b11 << boffset(b));
-}
-inline int get_bit(int b) 
-{ 
-    return free_map[bindex(b)] & (0b11 << boffset(b));
+    uint32_t wipe_mask = ~(0b11 << boffset(index));
+    free_map[bindex(index)] &= wipe_mask;
 }
 
-inline node_t *find_free()
+inline void set_bit(int index, status_t val) 
+{ 
+    uint32_t wipe_mask = ~(0b11 << boffset(index));
+    free_map[bindex(index)] &= wipe_mask;
+    
+    free_map[bindex(index)] |= (val << boffset(index)); 
+}
+
+inline int get_bit(int index) 
+{ 
+    return free_map[bindex(index)] & (0b11 << boffset(index));
+}
+
+node_t *find_free()
 {
     sem_wait(&buff_guard);
-    size_t free_index = 0;
-    for (;;) {
-        if (free_index >= BUFFER_SIZE)
-            exit(-1);
-        
-        free_map[]
+    for (size_t free_index = 0; free_index < BUFFER_SIZE; ++free_index) {
+        if (EMPTY == get_bit(free_index)) {
+            set_bit(free_index, FILLING);
+            printf("%x\n", free_map[0]);
+        }
         
     }    
 
@@ -157,15 +163,32 @@ void *consumer_thread(void *arg)
 
 
 
-
+void tester(uint32_t x)
+{
+    printf("%u: (in: %u, of: %u)\n", x, bindex(x), boffset(x));
+}
 
 int main(int argc, char *argv[]) 
 {
-   
+    sem_init(&full, 0, 0);
+    sem_init(&empty, 0, BUFFER_SIZE);
+    sem_init(&buff_guard, 0, 1);
+
+    // tester(0);
+    // tester(1);
+    // tester(2);
+    for (size_t i = 0; i < 32; i++)
+        tester(i);
+
+    printf("idfsf\n");
     assert((BUFFER_SIZE & 0b11) == 0); // BUFFER_SIZE should be a multiple of 4
     for (size_t i = 0; i < FREE_MAP_SIZE; ++i)
         free_map[i] = 0;
     
+    printf("idfsffff\n");
+
+    find_free();
+    return 0;
 
     /* sem_open instead of sem_init should be used on macos, 
     where unnamed semaphores are not supported for some reason */
@@ -185,9 +208,7 @@ int main(int argc, char *argv[])
     // assert (buff_guard != SEM_FAILED);
 
 
-    sem_init(&full, 0, 0);
-    sem_init(&empty, 0, BUFFER_SIZE);
-    sem_init(&buff_guard, 0, 1);
+
 
 
 
