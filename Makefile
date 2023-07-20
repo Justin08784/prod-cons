@@ -1,4 +1,4 @@
-BIN = ppv1
+BIN = v1
 CC = gcc
 CXX = g++
 # CFLAGS = -O2 -Wall -Wextra -g -fPIC -I $(INCLUDE)

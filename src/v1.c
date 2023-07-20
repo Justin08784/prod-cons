@@ -3,9 +3,11 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdint.h>
 
 #include <pthread.h>
 #include <semaphore.h>
+#include <fcntl.h>
 
 #include <utlist.h>
 #include <utarray.h>
@@ -25,8 +27,8 @@ void *ck_malloc(size_t size, char *info_str)
 {
     void *rv = (void *)malloc(size);
     if (!rv) {
-            printf("Failed to realloc in %s.\n", info_str);
-            exit(1);
+        printf("Failed to realloc in %s.\n", info_str);
+        exit(1);
     }
     return rv;
 }
@@ -55,9 +57,9 @@ node_t *create_node(void *data, size_t bytes)
 
 
 node_t *list = NULL;
-sem_t *full = NULL;
-sem_t *empty = NULL;
-sem_t *list_guard = NULL;
+sem_t full;
+sem_t empty;
+sem_t list_guard;
 
 
 pthread_mutex_t *guard;
@@ -72,12 +74,12 @@ void *producer_thread(void *arg)
 
         node_t *node = create_node(&arr[i], sizeof(uint32_t));
         // printf("A\n");
-        sem_wait(empty);
-        sem_wait(list_guard);
+        sem_wait(&empty);
+        sem_wait(&list_guard);
         DL_APPEND(list, node);
         printf("PROD %u\n", *((uint32_t *)node->data));
-        sem_post(list_guard);
-        sem_post(full);
+        sem_post(&list_guard);
+        sem_post(&full);
     }
 
 }
@@ -95,14 +97,14 @@ void *consumer_thread(void *arg)
     while (true) {
         // printf("B\n");
         usleep(rand_r(&rand_state) % 1000000);
-        sem_wait(full);
-        sem_wait(list_guard);
+        sem_wait(&full);
+        sem_wait(&list_guard);
         node_t *head = list;
         DL_DELETE(list, head);
         printf("CONS %u\n", *((uint32_t *)head->data));
         free(head);
-        sem_post(list_guard);
-        sem_post(empty);
+        sem_post(&list_guard);
+        sem_post(&empty);
     }
 }
 
@@ -112,30 +114,35 @@ void *consumer_thread(void *arg)
 
 int main(int argc, char *argv[]) 
 {
-//     full = sem_open("/full_sem/a", O_CREAT, 0644, 0);
-//     empty = sem_open("/empty_sem/b", O_CREAT, 0644, 10);
-//     list_guard = sem_open("/list_guard/c", O_CREAT, 0644, 1);
-    sem_unlink("/full_sem");
-    sem_unlink("/empty_sem");
-    sem_unlink("/list_guard");
+    /* sem_open instead of sem_init should be used on macos, 
+    where unnamed semaphores are not supported for some reason */
+    // sem_unlink("/full_sem");
+    // sem_unlink("/empty_sem");
+    // sem_unlink("/list_guard");
 
 
-    full = sem_open("/full_sem", O_CREAT, 0644, 0);
-    empty = sem_open("/empty_sem", O_CREAT, 0644, 10);
-    list_guard = sem_open("/list_guard", O_CREAT, 0644, 1);
-    printf("full: %p\n", full);
-    printf("empty: %p\n", empty);
-    printf("list_guard: %p\n", list_guard);
-    assert (full != SEM_FAILED);
-    assert (empty != SEM_FAILED);
-    assert (list_guard != SEM_FAILED);
+    // full = sem_open("/full_sem", O_CREAT, 0644, 0);
+    // empty = sem_open("/empty_sem", O_CREAT, 0644, 10);
+    // list_guard = sem_open("/list_guard", O_CREAT, 0644, 1);
+    // printf("full: %p\n", full);
+    // printf("empty: %p\n", empty);
+    // printf("list_guard: %p\n", list_guard);
+    // assert (full != SEM_FAILED);
+    // assert (empty != SEM_FAILED);
+    // assert (list_guard != SEM_FAILED);
+
+
+    sem_init(&full, 0, 0);
+    sem_init(&empty, 0, 10);
+    sem_init(&list_guard, 0, 1);
+
 
 
 
     node_t *curr;
     int count;
     for (size_t i = 0; i < 10; ++i)
-            arr[i] = i;
+        arr[i] = i;
     DL_COUNT(list, curr, count);
     printf("count    %u\n", count);
     DL_FOREACH(list, curr) printf("%u ", *((uint32_t *) curr->data));
