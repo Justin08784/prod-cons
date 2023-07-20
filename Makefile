@@ -6,7 +6,7 @@ CFLAGS = -O2 -Wall -Wextra -fPIC -I $(INCLUDE)
 CXXFLAGS = 
 CPPFLAGS = 
 LDFLAGS = 
-INCLUDE = /Users/shinej/cs/research/prod-cons/uthash/src
+INCLUDE = ./uthash-src
 
 # SRC_DIR = 
 # SOURCES = v1.c

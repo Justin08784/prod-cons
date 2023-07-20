@@ -84,11 +84,20 @@ void *producer_thread(void *arg)
   }
 
 }
+#include "unistd.h"
 
 void *consumer_thread(void *arg)
 {
+  // time_t t;
+  // srand((unsigned) time(&t));
+
+  uint rand_state;
+  rand_state = time(NULL) ^ getpid() ^ (uint) pthread_self();
+
+
   while (true) {
     // printf("B\n");
+    usleep(rand_r(&rand_state) % 1000000);
     sem_wait(full);
     sem_wait(list_guard);
     node_t *head = list;
@@ -123,9 +132,6 @@ int main(int argc, char *argv[])
   assert (full != SEM_FAILED);
   assert (empty != SEM_FAILED);
   assert (list_guard != SEM_FAILED);
-
-  time_t t;
-  srand((unsigned) time(&t));
 
 
 
