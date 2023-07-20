@@ -84,19 +84,42 @@ inline int get_bit(int index)
     return free_map[bindex(index)] & (0b11 << boffset(index));
 }
 
-node_t *find_free()
+int find_free()
 {
-    sem_wait(&buff_guard);
     for (size_t free_index = 0; free_index < BUFFER_SIZE; ++free_index) {
         if (EMPTY == get_bit(free_index)) {
             set_bit(free_index, FILLING);
             printf("%x\n", free_map[0]);
+            return free_index;
         }
-        
-    }    
+    }
 
-    sem_post(&buff_guard);
+    printf("error: no free slots\n");
+    exit(-1);    
+}
+
+int find_full()
+{
+    for (size_t full_index = 0; full_index < BUFFER_SIZE; ++full_index) {
+        if (FULL == get_bit(full_index)) {
+            set_bit(full_index, EMPTYING);
+            printf("%x\n", free_map[0]);
+            return full_index;
+        }
+    }
     
+    printf("error: no full slots\n");
+    exit(-1);    
+}
+
+int mark_as_full(int index)
+{
+    set_bit(index, FULL);
+}
+
+int mark_as_empty(int index)
+{
+    set_bit(index, EMPTY);
 }
 
 
@@ -125,6 +148,8 @@ void *producer_thread(void *arg)
 
         sem_wait(&empty);
         sem_wait(&buff_guard);
+        int free_index = find_free();
+
         // DL_APPEND(buffer, node);
         if (ENABLE_DEBUG)
             printf("PROD %u\n", *((uint32_t *)node->data));
@@ -187,7 +212,11 @@ int main(int argc, char *argv[])
     
     printf("idfsffff\n");
 
-    find_free();
+    // int inder = find_free();
+    // printf("inder: %d\n", inder);
+    // mark_as_full(inder);
+    // printf("fullio: %d\n", find_full());
+    
     return 0;
 
     /* sem_open instead of sem_init should be used on macos, 
