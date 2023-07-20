@@ -9,8 +9,9 @@
 
 
 
-const size_t max_empty = 10;
-std::counting_semaphore<max_empty> full{0}, empty{max_empty};
+#define MAX_EMPTY 10
+
+std::counting_semaphore<MAX_EMPTY> full{0}, empty{MAX_EMPTY};
 std::queue<void *> ready;
 std::mutex ready_guard;
 
@@ -45,6 +46,12 @@ void *produce(void *arg)
     return (void *) new_val;
 }
 
+void *consume(void *data)
+{
+    free(data);
+    return nullptr;
+}
+
 void *consumer_thread(void *arg)
 {
     while (true) {
@@ -66,7 +73,7 @@ void *consumer_thread(void *arg)
 
 class Producer {
     std::queue<void *> *data;
-    std::counting_semaphore<max_empty> *full, *empty;
+    std::counting_semaphore<MAX_EMPTY> *full, *empty;
     std::mutex *data_guard;
     void * (*produce)(void *arg);
 
@@ -91,8 +98,8 @@ class Producer {
         std::thread thread;
 
         Producer(std::queue<void *> *datar, 
-                 std::counting_semaphore<max_empty> *fullr, 
-                 std::counting_semaphore<max_empty> *emptyr,
+                 std::counting_semaphore<MAX_EMPTY> *fullr, 
+                 std::counting_semaphore<MAX_EMPTY> *emptyr,
                  std::mutex *data_guardr,
                  void *(*callback_function)(void *)) 
         {
@@ -111,24 +118,82 @@ class Producer {
 
 };
 
+class Consumer {
+    std::queue<void *> *data;
+    std::counting_semaphore<MAX_EMPTY> *full, *empty;
+    std::mutex *data_guard;
+    void * (*consume)(void *arg);
+
+    void *consumer_main(void *arg)
+    {
+        while (true) {
+
+            // printf("A\n");
+            full->acquire();
+
+            data_guard->lock();
+            uint32_t *popped_val = (uint32_t *)ready.front();
+            data->pop();
+            data_guard->unlock();
+            printf("CONS %u\n", *popped_val);
+            consume((void *)popped_val);
+            empty->release();            
+        }
+
+    }
+    
+    public:
+        std::thread thread;
+
+        Consumer(std::queue<void *> *datar, 
+                 std::counting_semaphore<MAX_EMPTY> *fullr, 
+                 std::counting_semaphore<MAX_EMPTY> *emptyr,
+                 std::mutex *data_guardr,
+                 void *(*callback_function)(void *)) 
+        {
+            data = datar;
+            full = fullr;
+            empty = emptyr;
+            data_guard = data_guardr;
+            consume = callback_function;
+
+        }
+
+        void run()
+        {
+            thread = std::thread(&Consumer::consumer_main, this, nullptr);
+        }
+
+};
+
 
 
 
 int main(int argc, char *argv[]) 
 {
     // std::thread p1(producer_thread, nullptr);
+    size_t num_producers = 1;
+    size_t num_consumers = 10;
+
+    std::queue<Producer> producers;
 
 
     Producer p1(&ready, &full, &empty, &ready_guard, produce);
     p1.run();
 
-    std::thread c1(consumer_thread, nullptr);
-    std::thread c2(consumer_thread, nullptr);
+    // std::thread c1(consumer_thread, nullptr);
+    // std::thread c2(consumer_thread, nullptr);
+
+    Consumer c1(&ready, &full, &empty, &ready_guard, consume);    
+    Consumer c2(&ready, &full, &empty, &ready_guard, consume);    
+    c1.run();
+    c2.run();    
+
 
     p1.thread.join();
     printf("I have contracted stupidity\n");
-    c1.join();
-    c2.join();
+    c1.thread.join();
+    c2.thread.join();
 }
 
 
