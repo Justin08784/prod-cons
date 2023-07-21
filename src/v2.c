@@ -56,41 +56,20 @@ inline void free_node(node_t *node)
 
 
 node_t *buffer[BUFFER_SIZE];
-uint32_t free_map[FREE_MAP_SIZE];
+status_t free_map[BUFFER_SIZE];
 sem_t full;
 sem_t empty;
 sem_t buff_guard;
 
-inline int bindex(int b) { return b / BLOCKS_PER_WORD; }
-inline int boffset(int b) { return 2 * (b % BLOCKS_PER_WORD); }
-
-
-inline void clear_bit(int index) 
-{ 
-    uint32_t wipe_mask = ~(0b11 << boffset(index));
-    free_map[bindex(index)] &= wipe_mask;
-}
-
-inline void set_bit(int index, status_t val) 
-{ 
-    uint32_t wipe_mask = ~(0b11 << boffset(index));
-    free_map[bindex(index)] &= wipe_mask;
-    
-    free_map[bindex(index)] |= (val << boffset(index)); 
-}
-
-inline int get_bit(int index) 
-{ 
-    // printf("  %x\n", 0b11 << boffset(index));
-    return (free_map[bindex(index)] >> boffset(index)) & 0b11;
-}
 
 int find_free()
 {
+    sem_wait(&buff_guard);
     for (size_t free_index = 0; free_index < BUFFER_SIZE; ++free_index) {
-        if (EMPTY == get_bit(free_index)) {
-            set_bit(free_index, FILLING);
+        if (free_map[free_index] == EMPTY) {
+            free_map[free_index] = FILLING;
             // printf("%x\n", free_map[0]);
+            sem_post(&buff_guard);
             return free_index;
         }
     }
@@ -101,13 +80,12 @@ int find_free()
 
 int find_full()
 {
+    sem_wait(&buff_guard);
     for (size_t full_index = 0; full_index < BUFFER_SIZE; ++full_index) {
-        int cur_bit = get_bit(full_index);
-        // printf("i: %d, cur: %d\n", full_index, cur_bit);
-
-        if (FULL == cur_bit) {
-            set_bit(full_index, EMPTYING);
+        if (free_map[full_index] == FULL) {
+            free_map[full_index] = EMPTYING;
             // printf("%x\n", free_map[0]);
+            sem_post(&buff_guard);
             return full_index;
         }
     }
@@ -118,12 +96,16 @@ int find_full()
 
 int mark_as_full(int index)
 {
-    set_bit(index, FULL);
+    sem_wait(&buff_guard);
+    free_map[index] = FULL;
+    sem_post(&buff_guard);
 }
 
 int mark_as_empty(int index)
 {
-    set_bit(index, EMPTY);
+    sem_wait(&buff_guard);
+    free_map[index] = EMPTY;
+    sem_post(&buff_guard);
 }
 
 
@@ -151,14 +133,12 @@ void *producer_thread(void *arg)
         node_t *node = create_node(datum, bytes);
 
         sem_wait(&empty);
-        sem_wait(&buff_guard);
         int free_index = find_free();
         // printf("free %d\n", free_index);
 
         // DL_APPEND(buffer, node);
         if (ENABLE_DEBUG)
             printf("PROD %u\n", *((uint32_t *)node->data));
-        sem_post(&buff_guard);
 
         buffer[free_index] = node;
         mark_as_full(free_index);
@@ -179,14 +159,12 @@ void *consumer_thread(void *arg)
 
     for (;;) {
         sem_wait(&full);
-        sem_wait(&buff_guard);
         // printf("ohno: %x\n", free_map[0]);
         int full_index = find_full();
 
         // printf("full %d\n", full_index);
 
         // DL_DELETE(buffer, head);
-        sem_post(&buff_guard);
         /* we can mark as available (i.e. increment empty) because the node 
         is taken from the list anyways */
         node_t *datum = buffer[full_index];
@@ -203,10 +181,10 @@ void *consumer_thread(void *arg)
 
 
 
-void tester(uint32_t x)
-{
-    printf("%u: (in: %u, of: %u)\n", x, bindex(x), boffset(x));
-}
+// void tester(uint32_t x)
+// {
+//     printf("%u: (in: %u, of: %u)\n", x, bindex(x), boffset(x));
+// }
 
 int main(int argc, char *argv[]) 
 {
@@ -225,15 +203,11 @@ int main(int argc, char *argv[])
     // tester(0);
     // tester(1);
     // tester(2);
-    for (size_t i = 0; i < 32; i++)
-        tester(i);
+    // for (size_t i = 0; i < 32; i++)
+    //     tester(i);
 
-    printf("idfsf\n");
-    assert((BUFFER_SIZE & 0b11) == 0); // BUFFER_SIZE should be a multiple of 4
-    for (size_t i = 0; i < FREE_MAP_SIZE; ++i)
-        free_map[i] = 0;
     
-    printf("idfsffff\n");
+    assert((BUFFER_SIZE & 0b11) == 0); // BUFFER_SIZE should be a multiple of 4
 
     // int inder = find_free();
     // printf("inder: %d\n", inder);
