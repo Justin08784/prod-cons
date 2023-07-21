@@ -29,10 +29,10 @@ typedef enum status {
 #define PROD_TIME 1000 // in microseconds
 
 #define STATUS_BITS 2
-#define STATUSES_PER_WORD 32 // __WORDSIZE/STATUS_BITS
+#define STATUSES_PER_WORD 16 // __WORDSIZE/STATUS_BITS
 
 void *buffer[BUFFER_SIZE];
-uint64_t free_map[BUFFER_SIZE / STATUSES_PER_WORD + 1];
+uint32_t free_map[BUFFER_SIZE / STATUSES_PER_WORD + 1];
 sem_t full;
 sem_t empty;
 sem_t buff_guard;
