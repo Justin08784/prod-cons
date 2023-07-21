@@ -17,7 +17,7 @@
 #define ENABLE_DEBUG false
 
 #define PROD_LIMIT 1000 // max # of production cycles
-#define CONS_TIME 1000 // in microseconds
+#define CONS_TIME 10000 // in microseconds
 #define PROD_TIME 1000 // in microseconds
 
 typedef struct node {

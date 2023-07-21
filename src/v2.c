@@ -25,7 +25,7 @@ typedef enum status {
 #define ENABLE_DEBUG false
 
 #define PROD_LIMIT 1000 // max # of production cycles
-#define CONS_TIME 1000 // in microseconds
+#define CONS_TIME 10000 // in microseconds
 #define PROD_TIME 1000 // in microseconds
 
 void *buffer[BUFFER_SIZE];
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
     // assert (buff_guard != SEM_FAILED);
 
     size_t num_producers = 1;
-    size_t num_consumers = 3;
+    size_t num_consumers = 10;
 
     pthread_t producers[num_producers];
     pthread_t consumers[num_consumers];

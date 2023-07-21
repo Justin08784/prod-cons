@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
     // assert (buff_guard != SEM_FAILED);
 
     size_t num_producers = 1;
-    size_t num_consumers = 3;
+    size_t num_consumers = 10;
 
     pthread_t producers[num_producers];
     pthread_t consumers[num_consumers];
