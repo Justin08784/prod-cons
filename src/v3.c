@@ -74,8 +74,8 @@ inline int find_free()
 {
     sem_wait(&buff_guard);
     for (size_t free_index = 0; free_index < BUFFER_SIZE; ++free_index) {
-        if (free_map[free_index] == EMPTY) {
-            free_map[free_index] = FILLING;
+        if (get_status(free_index) == EMPTY) {
+            set_status(free_index, FILLING);
             sem_post(&buff_guard);
             return free_index;
         }
@@ -89,8 +89,8 @@ inline int find_full()
 {
     sem_wait(&buff_guard);
     for (size_t full_index = 0; full_index < BUFFER_SIZE; ++full_index) {
-        if (free_map[full_index] == FULL) {
-            free_map[full_index] = EMPTYING;
+        if (get_status(full_index) == FULL) {
+            set_status(full_index, EMPTYING);
             sem_post(&buff_guard);
             return full_index;
         }
@@ -103,14 +103,14 @@ inline int find_full()
 inline void mark_as_full(int index)
 {
     sem_wait(&buff_guard);
-    free_map[index] = FULL;
+    set_status(index, FULL);
     sem_post(&buff_guard);
 }
 
 inline void mark_as_empty(int index)
 {
     sem_wait(&buff_guard);
-    free_map[index] = EMPTY;
+    set_status(index, EMPTY);
     sem_post(&buff_guard);
 }
 
@@ -183,18 +183,18 @@ int main(int argc, char *argv[])
         
     // }
 
-    printf("%x\n", free_map[0]);
-    for (size_t i = 0; i < 16; ++i) {
-        set_status(i, FULL);
-        printf("set %x\n", free_map[0]);
-        assert(get_status(i) == FULL);
-        if (i > 0) {
-            set_status(i - 1, EMPTY);
-            printf("cle %x\n", free_map[0]);
-            assert(get_status(i - 1) == EMPTY);
-        }
-    }
-    return 0;
+    // printf("%x\n", free_map[0]);
+    // for (size_t i = 0; i < 16; ++i) {
+    //     set_status(i, FULL);
+    //     printf("set %x\n", free_map[0]);
+    //     assert(get_status(i) == FULL);
+    //     if (i > 0) {
+    //         set_status(i - 1, EMPTY);
+    //         printf("cle %x\n", free_map[0]);
+    //         assert(get_status(i - 1) == EMPTY);
+    //     }
+    // }
+    // return 0;
 
     for (size_t i = 0; i < BUFFER_SIZE; ++i)
         buffer[i] = ck_malloc(BLOCK_SIZE);
