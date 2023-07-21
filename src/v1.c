@@ -15,7 +15,10 @@
 
 #define BUFFER_SIZE 32
 #define ENABLE_DEBUG true
+
 #define PROD_LIMIT 10 // max # of production cycles
+#define CONS_TIME 1000 // in microseconds
+#define PROD_TIME 1000 // in microseconds
 
 typedef struct node {
     void *data;
@@ -62,6 +65,7 @@ inline void free_node(node_t *node)
 void consume(void *data)
 {
     free(data);
+    usleep(CONS_TIME);
 }
 
 void *produce(void *arg, size_t *out_bytes)
@@ -71,6 +75,7 @@ void *produce(void *arg, size_t *out_bytes)
     *new_val = nval++;
     sem_post(&nval_guard);
     *out_bytes = sizeof(uint32_t);
+    usleep(PROD_TIME);
     return (void *) new_val;
 }
 

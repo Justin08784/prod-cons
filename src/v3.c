@@ -121,6 +121,7 @@ inline void mark_as_empty(int index)
 
 void consume(void *data)
 {
+    usleep(CONS_TIME);
     return;
 }
 
@@ -130,6 +131,7 @@ void produce(void *arg, void *out_dst, size_t *out_bytes)
     *((uint32_t *) out_dst) = nval++;
     sem_post(&nval_guard);
     *out_bytes = sizeof(uint32_t);
+    usleep(PROD_TIME);
 }
 
 void *producer_thread(void *arg)
@@ -143,7 +145,6 @@ void *producer_thread(void *arg)
 
         int free_index = find_free();
         produce(NULL, buffer[free_index], &bytes);
-        usleep(PROD_TIME);
         if (ENABLE_DEBUG)
             printf("PROD %u\n", *((uint32_t *) buffer[free_index]));
         
@@ -167,7 +168,6 @@ void *consumer_thread(void *arg)
         void *val = buffer[full_index];
         if (ENABLE_DEBUG)
             printf("CONS %u\n", *((uint32_t *) val));
-        usleep(CONS_TIME);
         consume(val);
 
         mark_as_empty(full_index);
