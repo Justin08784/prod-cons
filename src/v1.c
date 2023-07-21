@@ -16,7 +16,7 @@
 #define BUFFER_SIZE 32
 #define ENABLE_DEBUG false
 
-#define PROD_LIMIT 10 // max # of production cycles
+#define PROD_LIMIT 1000 // max # of production cycles
 #define CONS_TIME 1000 // in microseconds
 #define PROD_TIME 1000 // in microseconds
 
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 
 
 
-    size_t num_producers = 10;
+    size_t num_producers = 1;
     size_t num_consumers = 10;
 
     pthread_t producers[num_producers];
