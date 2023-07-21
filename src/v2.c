@@ -15,8 +15,6 @@
 
 #define BUFFER_SIZE 16
 #define ENABLE_DEBUG true
-#define BLOCKS_PER_WORD 16
-#define FREE_MAP_SIZE 1
 
 
 typedef enum status {
@@ -62,7 +60,7 @@ sem_t empty;
 sem_t buff_guard;
 
 
-int find_free()
+inline int find_free()
 {
     sem_wait(&buff_guard);
     for (size_t free_index = 0; free_index < BUFFER_SIZE; ++free_index) {
@@ -78,7 +76,7 @@ int find_free()
     exit(-1);    
 }
 
-int find_full()
+inline int find_full()
 {
     sem_wait(&buff_guard);
     for (size_t full_index = 0; full_index < BUFFER_SIZE; ++full_index) {
@@ -94,14 +92,14 @@ int find_full()
     exit(-1);    
 }
 
-int mark_as_full(int index)
+inline void mark_as_full(int index)
 {
     sem_wait(&buff_guard);
     free_map[index] = FULL;
     sem_post(&buff_guard);
 }
 
-int mark_as_empty(int index)
+inline void mark_as_empty(int index)
 {
     sem_wait(&buff_guard);
     free_map[index] = EMPTY;
@@ -127,16 +125,13 @@ void *produce(void *arg, size_t *out_bytes)
 void *producer_thread(void *arg)
 {
     for (;;) {
-        
         size_t bytes;
         void *datum = produce(arg, &bytes);
         node_t *node = create_node(datum, bytes);
 
         sem_wait(&empty);
-        int free_index = find_free();
-        // printf("free %d\n", free_index);
 
-        // DL_APPEND(buffer, node);
+        int free_index = find_free();
         if (ENABLE_DEBUG)
             printf("PROD %u\n", *((uint32_t *)node->data));
 
@@ -150,71 +145,31 @@ void *producer_thread(void *arg)
 
 void *consumer_thread(void *arg)
 {
-    // time_t t;
-    // srand((unsigned) time(&t));
-
-    uint rand_state;
-    rand_state = time(NULL) ^ getpid() ^ (uint) pthread_self();
+    uint32_t rand_state = time(NULL) ^ getpid() ^ pthread_self();
 
 
     for (;;) {
         sem_wait(&full);
-        // printf("ohno: %x\n", free_map[0]);
+
         int full_index = find_full();
-
-        // printf("full %d\n", full_index);
-
-        // DL_DELETE(buffer, head);
-        /* we can mark as available (i.e. increment empty) because the node 
-        is taken from the list anyways */
-        node_t *datum = buffer[full_index];
+        node_t *node = buffer[full_index];
         if (ENABLE_DEBUG)
-            printf("CONS %u\n", *((uint32_t *)datum->data));
+            printf("CONS %u\n", *((uint32_t *)node->data));
+        consume(node->data);
+        free_node(node);
         mark_as_empty(full_index);
+
         sem_post(&empty);
-        
-        // usleep(rand_r(&rand_state) % 1000000);
-        consume(datum->data);
-        free_node(datum);
     }
 }
 
 
 
-// void tester(uint32_t x)
-// {
-//     printf("%u: (in: %u, of: %u)\n", x, bindex(x), boffset(x));
-// }
-
 int main(int argc, char *argv[]) 
 {
-
-    // free_map[0] = 0xfffffffc;
-
-    // printf("free_map: %x\n", free_map[0]);
-
-    // find_full();
-    // return 0;
-
     sem_init(&full, 0, 0);
     sem_init(&empty, 0, BUFFER_SIZE);
     sem_init(&buff_guard, 0, 1);
-
-    // tester(0);
-    // tester(1);
-    // tester(2);
-    // for (size_t i = 0; i < 32; i++)
-    //     tester(i);
-
-    
-    assert((BUFFER_SIZE & 0b11) == 0); // BUFFER_SIZE should be a multiple of 4
-
-    // int inder = find_free();
-    // printf("inder: %d\n", inder);
-    // mark_as_full(inder);
-    // printf("fullio: %d\n", find_full());
-    
-    // return 0;
 
     /* sem_open instead of sem_init should be used on macos, 
     where unnamed semaphores are not supported for some reason */
@@ -232,14 +187,6 @@ int main(int argc, char *argv[])
     // assert (full != SEM_FAILED);
     // assert (empty != SEM_FAILED);
     // assert (buff_guard != SEM_FAILED);
-
-
-
-
-
-
-
-
 
     size_t num_producers = 1;
     size_t num_consumers = 10;
