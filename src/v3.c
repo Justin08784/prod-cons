@@ -23,7 +23,10 @@ typedef enum status {
 #define BUFFER_SIZE 16 // in blocks
 #define BLOCK_SIZE 16 // in bytes
 #define ENABLE_DEBUG true
+
 #define PROD_LIMIT 10000 // max # of production cycles
+#define CONS_TIME 1000 // in microseconds
+#define PROD_TIME 1000 // in microseconds
 
 #define STATUS_BITS 2
 #define STATUSES_PER_WORD 32 // __WORDSIZE/STATUS_BITS
@@ -131,6 +134,8 @@ void produce(void *arg, void *out_dst, size_t *out_bytes)
 
 void *producer_thread(void *arg)
 {
+    uint32_t rand_state = time(NULL) ^ getpid() ^ pthread_self();
+
     for (size_t cycle_no = 0; cycle_no < PROD_LIMIT; ++cycle_no) {
         size_t bytes;
 
@@ -138,6 +143,7 @@ void *producer_thread(void *arg)
 
         int free_index = find_free();
         produce(NULL, buffer[free_index], &bytes);
+        usleep(PROD_TIME);
         if (ENABLE_DEBUG)
             printf("PROD %u\n", *((uint32_t *) buffer[free_index]));
         
@@ -161,7 +167,7 @@ void *consumer_thread(void *arg)
         void *val = buffer[full_index];
         if (ENABLE_DEBUG)
             printf("CONS %u\n", *((uint32_t *) val));
-        rand_r(&rand_state);
+        usleep(CONS_TIME);
         consume(val);
 
         mark_as_empty(full_index);
