@@ -116,7 +116,7 @@ void *producer_thread(void *arg)
 
 
     /* counting number of empty blocks */
-    for (size_t i = 0; i < BUFFER_SIZE - 1; ++i)
+    for (size_t i = 0; i < BUFFER_SIZE; ++i)
         sem_wait(&empty);
 
     /* all buffer blocks are empty, hence all consumers must have finished */
