@@ -1,4 +1,4 @@
-BIN = v1
+BIN = v3
 CC = gcc
 CXX = g++
 # CFLAGS = -O2 -Wall -Wextra -g -fPIC -I $(INCLUDE)
@@ -14,7 +14,6 @@ INCLUDE = ./uthash-src
 RM = rm -f
 all: $(BIN)
 .PHONY: all
-
 ppv1: ./src/v1.cpp
 	$(CXX) -o $@ $^ $(CXXFLAGS) 
 
@@ -22,6 +21,9 @@ v1: ./src/v1.c
 	$(CC) -o $@ $^ $(CFLAGS) 
 
 v2: ./src/v2.c
+	$(CC) -o $@ $^ $(CFLAGS) 
+
+v3: ./src/v3.c
 	$(CC) -o $@ $^ $(CFLAGS) 
 
 

@@ -51,13 +51,13 @@ inline int soffset(int b) { return STATUS_BITS * (b % STATUSES_PER_WORD); }
 
 inline void clear_status(int index) 
 { 
-    uint32_t wipe_mask = ~(0b11 << soffset(index));
+    uint64_t wipe_mask = ~(0b11 << soffset(index));
     free_map[sindex(index)] &= wipe_mask;
 }
 
 inline void set_status(int index, status_t val) 
 { 
-    uint32_t wipe_mask = ~(0b11 << soffset(index));
+    uint64_t wipe_mask = ~(0b11 << soffset(index));
     free_map[sindex(index)] &= wipe_mask;
     
     free_map[sindex(index)] |= (val << soffset(index)); 
@@ -173,14 +173,26 @@ void *consumer_thread(void *arg)
 
 int main(int argc, char *argv[]) 
 {
-    for (size_t i = 0; i < 128; ++i) {
-        printf("i: %lu, sin: %d, sof: %d\n", i, sindex(i), soffset(i));
-        uint64_t wipe_mask = ~(0b11 << soffset(i));
-        uint64_t select_mask = 0b11 << soffset(i);
-        printf("  sele_mask: %x\n", select_mask);
-        printf("  wipe_mask: %x\n", wipe_mask);
-        printf("  sum: %x\n", select_mask + wipe_mask);
+    // for (size_t i = 0; i < 128; ++i) {
+    //     printf("i: %lu, sin: %d, sof: %d\n", i, sindex(i), soffset(i));
+    //     uint64_t wipe_mask = ~(0b11 << soffset(i));
+    //     uint64_t select_mask = 0b11 << soffset(i);
+    //     printf("  sele_mask: %x\n", select_mask);
+    //     printf("  wipe_mask: %x\n", wipe_mask);
+    //     printf("  sum: %x\n", select_mask + wipe_mask);
         
+    // }
+
+    printf("%x\n", free_map[0]);
+    for (size_t i = 0; i < 16; ++i) {
+        set_status(i, FULL);
+        printf("set %x\n", free_map[0]);
+        assert(get_status(i) == FULL);
+        if (i > 0) {
+            set_status(i - 1, EMPTY);
+            printf("cle %x\n", free_map[0]);
+            assert(get_status(i - 1) == EMPTY);
+        }
     }
     return 0;
 
