@@ -1,11 +1,11 @@
 # prod-cons
 
 All tests were run with the following settings:
-#define PROD_LIMIT 1000 // max # of production cycles
-#define CONS_TIME 10000 // in microseconds
-#define PROD_TIME 1000 // in microseconds
-size_t num_producers = 1;
-size_t num_consumers = 10;
+- #define PROD_LIMIT 1000 // max # of production cycles
+- #define CONS_TIME 10000 // in microseconds
+- #define PROD_TIME 1000 // in microseconds
+- size_t num_producers = 1;
+- size_t num_consumers = 10;
 
 Approach 1:
 - Dynamically allocated buffer blocks
