@@ -14,7 +14,7 @@
 #include <utarray.h>
 
 #define BUFFER_SIZE 32
-#define ENABLE_DEBUG true
+#define ENABLE_DEBUG false
 
 #define PROD_LIMIT 10 // max # of production cycles
 #define CONS_TIME 1000 // in microseconds

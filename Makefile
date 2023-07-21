@@ -1,4 +1,4 @@
-BIN = v3
+BIN = v3 v2 v1
 CC = gcc
 CXX = g++
 # CFLAGS = -O2 -Wall -Wextra -g -fPIC -I $(INCLUDE)

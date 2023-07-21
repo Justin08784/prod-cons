@@ -20,9 +20,9 @@ typedef enum status {
     FULL = 0b11
 } status_t;
 
-#define BUFFER_SIZE 16 // in blocks
-#define BLOCK_SIZE 16 // in bytes
-#define ENABLE_DEBUG true
+#define BUFFER_SIZE 32 // in blocks
+#define BLOCK_SIZE 32 // in bytes
+#define ENABLE_DEBUG false
 
 #define PROD_LIMIT 10000 // max # of production cycles
 #define CONS_TIME 1000 // in microseconds
