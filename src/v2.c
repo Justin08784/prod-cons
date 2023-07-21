@@ -14,6 +14,7 @@
 #include <utarray.h>
 
 #define BUFFER_SIZE 16
+#define BLOCK_SIZE 16
 #define ENABLE_DEBUG true
 
 
@@ -25,12 +26,6 @@ typedef enum status {
 } status_t;
 
 
-typedef struct node {
-    void *data;
-    size_t bytes;
-} node_t;
-
-
 inline void *ck_malloc(size_t size)
 {
     void *rv = malloc(size);
@@ -39,21 +34,7 @@ inline void *ck_malloc(size_t size)
     return rv;
 }
 
-inline node_t *create_node(void *data, size_t bytes)
-{
-    node_t *rv = ck_malloc(sizeof(node_t));
-    rv->data = data;
-    rv->bytes = bytes;
-    return rv;
-}
-
-inline void free_node(node_t *node)
-{
-    free(node);
-}
-
-
-node_t *buffer[BUFFER_SIZE];
+void *buffer[BUFFER_SIZE];
 status_t free_map[BUFFER_SIZE];
 sem_t full;
 sem_t empty;
@@ -110,32 +91,30 @@ inline void mark_as_empty(int index)
 
 void consume(void *data)
 {
-    free(data);
+    return;
 }
 
-void *produce(void *arg, size_t *out_bytes)
+void produce(void *arg, void *out_dst, size_t *out_bytes)
 {
     static uint32_t i = 0;
-    uint32_t *new_val = (uint32_t *)ck_malloc(sizeof(uint32_t));
-    *new_val = i++;
+    *((uint32_t *) out_dst) = i++;
     *out_bytes = sizeof(uint32_t);
-    return (void *) new_val;
 }
 
 void *producer_thread(void *arg)
 {
     for (;;) {
         size_t bytes;
-        void *datum = produce(arg, &bytes);
-        node_t *node = create_node(datum, bytes);
+
 
         sem_wait(&empty);
 
         int free_index = find_free();
-        if (ENABLE_DEBUG)
-            printf("PROD %u\n", *((uint32_t *)node->data));
-
-        buffer[free_index] = node;
+        produce(arg, buffer[free_index], &bytes);
+        if (ENABLE_DEBUG) {
+            uint32_t *val = (uint32_t *) buffer[free_index];
+            printf("PROD %u\n", *val);
+        }
         mark_as_full(free_index);
 
         sem_post(&full);
@@ -152,11 +131,13 @@ void *consumer_thread(void *arg)
         sem_wait(&full);
 
         int full_index = find_full();
-        node_t *node = buffer[full_index];
+        void *val = buffer[full_index];
         if (ENABLE_DEBUG)
-            printf("CONS %u\n", *((uint32_t *)node->data));
-        consume(node->data);
-        free_node(node);
+            printf("CONS %u\n", *((uint32_t *) val));
+        
+        rand_r(&rand_state);
+        consume(val);
+
         mark_as_empty(full_index);
 
         sem_post(&empty);
@@ -167,6 +148,9 @@ void *consumer_thread(void *arg)
 
 int main(int argc, char *argv[]) 
 {
+    for (size_t i = 0; i < BUFFER_SIZE; ++i)
+        buffer[i] = ck_malloc(BLOCK_SIZE);
+
     sem_init(&full, 0, 0);
     sem_init(&empty, 0, BUFFER_SIZE);
     sem_init(&buff_guard, 0, 1);
