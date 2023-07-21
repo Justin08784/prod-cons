@@ -31,6 +31,9 @@ sem_t full;
 sem_t empty;
 sem_t buff_guard;
 
+sem_t nval_guard;
+uint32_t nval = 0;
+
 
 inline void *ck_malloc(size_t size)
 {
@@ -93,8 +96,9 @@ void consume(void *data)
 
 void produce(void *arg, void *out_dst, size_t *out_bytes)
 {
-    static uint32_t i = 0;
-    *((uint32_t *) out_dst) = i++;
+    sem_wait(&nval_guard);
+    *((uint32_t *) out_dst) = nval++;
+    sem_post(&nval_guard);
     *out_bytes = sizeof(uint32_t);
 }
 
@@ -114,13 +118,8 @@ void *producer_thread(void *arg)
         sem_post(&full);
     }
 
+    return NULL;
 
-    /* counting number of empty blocks */
-    for (size_t i = 0; i < BUFFER_SIZE; ++i)
-        sem_wait(&empty);
-
-    /* all buffer blocks are empty, hence all consumers must have finished */
-    exit(0);
 }
 
 void *consumer_thread(void *arg)
@@ -153,6 +152,7 @@ int main(int argc, char *argv[])
     sem_init(&full, 0, 0);
     sem_init(&empty, 0, BUFFER_SIZE);
     sem_init(&buff_guard, 0, 1);
+    sem_init(&nval_guard, 0, 1);
 
     /* sem_open instead of sem_init should be used on macos, 
     where unnamed semaphores are not supported for some reason */
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
     // assert (empty != SEM_FAILED);
     // assert (buff_guard != SEM_FAILED);
 
-    size_t num_producers = 1;
+    size_t num_producers = 10;
     size_t num_consumers = 10;
 
     pthread_t producers[num_producers];
@@ -183,8 +183,10 @@ int main(int argc, char *argv[])
     
     for (size_t i = 0; i < num_producers; ++i)
         pthread_join(producers[i], NULL);
-    for (size_t i = 0; i < num_consumers; ++i)
-        pthread_join(consumers[i], NULL);
 
+    /* wait for all producers to exit, then count number of empty blocks */
+    for (size_t i = 0; i < BUFFER_SIZE; ++i)
+        sem_wait(&empty);
+    /* if all buffer blocks are empty, all consumers must have finished */
     return 0;
 }
