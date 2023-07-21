@@ -15,7 +15,7 @@
 
 #define BUFFER_SIZE 32
 #define ENABLE_DEBUG true
-
+#define PROD_LIMIT 10 // max # of production cycles
 
 typedef struct node {
     void *data;
@@ -24,6 +24,13 @@ typedef struct node {
     struct node *next;
 } node_t;
 
+node_t *list = NULL;
+sem_t full;
+sem_t empty;
+sem_t list_guard;
+
+sem_t nval_guard;
+uint32_t nval = 0;
 
 inline void *ck_malloc(size_t size)
 {
@@ -49,10 +56,6 @@ inline void free_node(node_t *node)
 }
 
 
-node_t *list = NULL;
-sem_t full;
-sem_t empty;
-sem_t list_guard;
 
 
 
@@ -63,17 +66,17 @@ void consume(void *data)
 
 void *produce(void *arg, size_t *out_bytes)
 {
-    static uint32_t i = 0;
     uint32_t *new_val = (uint32_t *)ck_malloc(sizeof(uint32_t));
-    *new_val = i++;
+    sem_wait(&nval_guard);
+    *new_val = nval++;
+    sem_post(&nval_guard);
     *out_bytes = sizeof(uint32_t);
     return (void *) new_val;
 }
 
 void *producer_thread(void *arg)
 {
-    for (;;) {
-        
+    for (size_t cycle_no = 0; cycle_no < PROD_LIMIT; ++cycle_no) {
         size_t bytes;
         void *datum = produce(arg, &bytes);
         node_t *node = create_node(datum, bytes);
@@ -94,8 +97,8 @@ void *consumer_thread(void *arg)
     // time_t t;
     // srand((unsigned) time(&t));
 
-    uint rand_state;
-    rand_state = time(NULL) ^ getpid() ^ (uint) pthread_self();
+    uint32_t rand_state;
+    rand_state = time(NULL) ^ getpid() ^ pthread_self();
 
 
     for (;;) {
@@ -110,7 +113,7 @@ void *consumer_thread(void *arg)
         is taken from the list anyways */
         sem_post(&empty);
         
-        usleep(rand_r(&rand_state) % 1000000);
+        // usleep(rand_r(&rand_state) % 1000000);
         consume(head->data);
         free_node(head);
     }
@@ -143,6 +146,7 @@ int main(int argc, char *argv[])
     sem_init(&full, 0, 0);
     sem_init(&empty, 0, BUFFER_SIZE);
     sem_init(&list_guard, 0, 1);
+    sem_init(&nval_guard, 0, 1);
 
 
 
@@ -161,8 +165,10 @@ int main(int argc, char *argv[])
     
     for (size_t i = 0; i < num_producers; ++i)
         pthread_join(producers[i], NULL);
-    for (size_t i = 0; i < num_consumers; ++i)
-        pthread_join(consumers[i], NULL);
-
+    
+    /* wait for all producers to exit, then count number of empty blocks */
+    for (size_t i = 0; i < BUFFER_SIZE; ++i)
+        sem_wait(&empty);
+    /* if all buffer blocks are empty, all consumers must have finished */
     return 0;
 }
